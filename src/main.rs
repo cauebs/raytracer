@@ -2,23 +2,20 @@ pub mod camera;
 pub mod interval;
 pub mod ray;
 pub mod sphere;
+pub mod vector;
 
 use camera::Camera;
-pub use interval::Interval;
-pub use ray::{Hittable, HittableList, Ray};
-pub use sphere::Sphere;
+use ray::HittableList;
+use sphere::Sphere;
+use vector::{vec3, Vec3};
 
-use std::{rc::Rc, time::Duration};
+use std::rc::Rc;
 
 use anyhow::Result;
-pub use euclid::vec3;
 use minifb::{Key, Window, WindowOptions};
-
-pub type Vec3 = euclid::default::Vector3D<f64>;
 
 pub struct FrameBuffer {
     width: usize,
-    // height: usize,
     buf: Vec<u32>,
 }
 
@@ -26,7 +23,6 @@ impl FrameBuffer {
     fn new(width: usize, height: usize) -> Self {
         Self {
             width,
-            // height,
             buf: vec![0; width * height],
         }
     }
@@ -50,34 +46,48 @@ const ASPECT_RATIO: f64 = 16. / 9.;
 const WIDTH: usize = 500;
 const HEIGHT: usize = ((WIDTH as f64) / ASPECT_RATIO) as usize;
 
-const MAX_FPS: f32 = 60.;
-
 fn main() -> Result<()> {
     let mut window = Window::new("Ray Tracing", WIDTH, HEIGHT, WindowOptions::default())?;
-
-    let frame_budget = Duration::from_secs_f32(1. / MAX_FPS);
-    window.limit_update_rate(Some(frame_budget));
 
     let mut world = HittableList::new();
     world.add(Rc::new(Sphere::new(vec3(0., 0., -1.), 0.5)));
     world.add(Rc::new(Sphere::new(vec3(0., -100.5, -1.), 100.)));
 
-    let mut camera = Camera::new(WIDTH, HEIGHT).with_samples_per_pixel(10);
     let mut fb = FrameBuffer::new(WIDTH, HEIGHT);
+    let mut camera = Camera::new(WIDTH, HEIGHT)
+        .with_samples_per_pixel(10)
+        .with_max_bounces(5);
 
     camera.render(&world, &mut fb);
     window.update_with_buffer(&fb.buf, WIDTH, HEIGHT)?;
 
     while window.is_open() {
-        if window.is_key_down(Key::NumPadPlus) {
-            camera.samples_per_pixel = camera.samples_per_pixel.saturating_add(10);
-        } else if window.is_key_down(Key::NumPadMinus) {
-            camera.samples_per_pixel = camera.samples_per_pixel.saturating_sub(10);
-        } else {
+        let keys = window.get_keys();
+
+        if keys.is_empty() {
             window.update();
             continue;
         }
-        println!("samples per pixel: {}", camera.samples_per_pixel);
+
+        let move_speed = 0.05;
+        for key in keys {
+            match key {
+                Key::NumPadPlus => {
+                    camera.samples_per_pixel = camera.samples_per_pixel.saturating_add(50)
+                }
+                Key::NumPadMinus => {
+                    camera.samples_per_pixel = camera.samples_per_pixel.saturating_sub(50)
+                }
+                Key::W => camera.center += vec3(0., 0., -move_speed),
+                Key::A => camera.center += vec3(-move_speed, 0., 0.),
+                Key::S => camera.center += vec3(0., 0., move_speed),
+                Key::D => camera.center += vec3(move_speed, 0., 0.),
+                Key::R => camera.center += vec3(0., move_speed, 0.),
+                Key::F => camera.center += vec3(0., -move_speed, 0.),
+                _ => {}
+            }
+        }
+
         camera.render(&world, &mut fb);
         window.update_with_buffer(&fb.buf, WIDTH, HEIGHT)?;
     }

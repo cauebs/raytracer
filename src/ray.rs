@@ -1,4 +1,4 @@
-use crate::{Interval, Vec3};
+use crate::{interval::Interval, vector::Vec3};
 
 use std::rc::Rc;
 
@@ -21,12 +21,12 @@ impl Ray {
 pub struct Hit {
     pub t: f64,
     pub p: Vec3,
-    pub outward_normal: Vec3,
+    pub normal: Vec3,
     pub front_face: bool,
 }
 
 pub trait Hittable {
-    fn hit(&self, ray: &Ray, ray_t: Interval, previous_hit: &Option<Hit>) -> Option<Hit>;
+    fn hit(&self, ray: &Ray, ray_t: Interval) -> Option<Hit>;
 }
 
 #[derive(Default)]
@@ -49,13 +49,13 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, ray: &Ray, ray_t: Interval, previous_hit: &Option<Hit>) -> Option<Hit> {
-        let mut last_hit = previous_hit.clone();
-        let mut closest_so_far = ray_t.max;
+    fn hit(&self, ray: &Ray, ray_t: Interval) -> Option<Hit> {
+        let mut last_hit: Option<Hit> = None;
 
         for object in &self.inner {
-            if let Some(hit) = object.hit(ray, ray_t.with_max(closest_so_far), &last_hit) {
-                closest_so_far = hit.t;
+            let max_t = last_hit.as_ref().map(|hit| hit.t).unwrap_or(ray_t.max);
+
+            if let Some(hit) = object.hit(ray, ray_t.with_max(max_t)) {
                 last_hit.replace(hit);
             }
         }
