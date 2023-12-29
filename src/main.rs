@@ -32,12 +32,16 @@ impl FrameBuffer {
     }
 
     fn paint(&mut self, x: usize, y: usize, color: Vec3) {
+        fn linear_to_gamma(component: f64) -> f64 {
+            component.sqrt()
+        }
+
         let i = self.index(x, y);
         self.buf[i] = u32::from_be_bytes([
             0,
-            (color.x * 255.999) as u8,
-            (color.y * 255.999) as u8,
-            (color.z * 255.999) as u8,
+            (linear_to_gamma(color.x) * 255.999) as u8,
+            (linear_to_gamma(color.y) * 255.999) as u8,
+            (linear_to_gamma(color.z) * 255.999) as u8,
         ]);
     }
 }
