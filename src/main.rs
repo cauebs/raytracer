@@ -12,7 +12,7 @@ use std::{rc::Rc, time::Duration};
 
 use anyhow::Result;
 pub use euclid::vec3;
-use minifb::{Window, WindowOptions};
+use minifb::{Key, Window, WindowOptions};
 
 pub type Vec3 = euclid::default::Vector3D<f64>;
 
@@ -62,10 +62,22 @@ fn main() -> Result<()> {
     world.add(Rc::new(Sphere::new(vec3(0., 0., -1.), 0.5)));
     world.add(Rc::new(Sphere::new(vec3(0., -100.5, -1.), 100.)));
 
-    let camera = Camera::new(WIDTH, HEIGHT);
+    let mut camera = Camera::new(WIDTH, HEIGHT).with_samples_per_pixel(10);
     let mut fb = FrameBuffer::new(WIDTH, HEIGHT);
 
+    camera.render(&world, &mut fb);
+    window.update_with_buffer(&fb.buf, WIDTH, HEIGHT)?;
+
     while window.is_open() {
+        if window.is_key_down(Key::NumPadPlus) {
+            camera.samples_per_pixel = camera.samples_per_pixel.saturating_add(10);
+        } else if window.is_key_down(Key::NumPadMinus) {
+            camera.samples_per_pixel = camera.samples_per_pixel.saturating_sub(10);
+        } else {
+            window.update();
+            continue;
+        }
+        println!("samples per pixel: {}", camera.samples_per_pixel);
         camera.render(&world, &mut fb);
         window.update_with_buffer(&fb.buf, WIDTH, HEIGHT)?;
     }
