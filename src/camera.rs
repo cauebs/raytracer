@@ -4,7 +4,7 @@ use rand::random;
 use crate::{
     interval::Interval,
     ray::{Hittable, Ray},
-    vector::{self, vec3, Vec3},
+    vector::{random_unit_vector, vec3, Vec3},
     FrameBuffer,
 };
 
@@ -108,7 +108,7 @@ fn ray_color(ray: &Ray, world: &impl Hittable, remaining_bounces: usize) -> Vec3
         if remaining_bounces == 0 {
             return Vec3::zero();
         }
-        let bounce_direction = vector::random_on_hemisphere(hit.normal);
+        let bounce_direction = hit.normal + random_unit_vector();
         return ray_color(
             &Ray::new(hit.p, bounce_direction),
             world,
