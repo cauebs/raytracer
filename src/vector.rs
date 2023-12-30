@@ -2,6 +2,7 @@ pub use euclid::vec3;
 use rand::Rng;
 
 pub type Vec3 = euclid::default::Vector3D<f64>;
+pub type Color = Vec3;
 
 fn random_in_unit_sphere() -> Vec3 {
     let mut rng = rand::thread_rng();

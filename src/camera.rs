@@ -3,8 +3,9 @@ use rand::random;
 
 use crate::{
     interval::Interval,
+    make_progress_bar,
     ray::{Hittable, Ray},
-    vector::{random_unit_vector, vec3, Vec3},
+    vector::{vec3, Color, Vec3},
     FrameBuffer,
 };
 
@@ -58,11 +59,13 @@ impl Camera {
     }
 
     pub fn render(&self, world: &impl Hittable, fb: &mut FrameBuffer) {
-        println!(
-            "Rendering with {} samples per pixel and {} max ray bounces...",
+        let message = format!(
+            "{:>3} samples/pixel, {:>3} max bounces",
             self.samples_per_pixel, self.max_bounces
         );
-        for y in (0..self.output_height).progress() {
+        for y in (0..self.output_height)
+            .progress_with(make_progress_bar(self.output_height).with_message(message))
+        {
             for x in 0..self.output_width {
                 let mut pixel_color = Vec3::zero();
                 for _ in 0..self.samples_per_pixel {
@@ -70,7 +73,7 @@ impl Camera {
                     pixel_color += ray_color(&ray, world, self.max_bounces);
                 }
                 pixel_color /= self.samples_per_pixel as f64;
-                fb.paint(x, y, pixel_color);
+                fb.paint(x, y, &pixel_color);
             }
         }
     }
@@ -103,17 +106,17 @@ impl Camera {
     }
 }
 
-fn ray_color(ray: &Ray, world: &impl Hittable, remaining_bounces: usize) -> Vec3 {
+fn ray_color(ray: &Ray, world: &impl Hittable, remaining_bounces: usize) -> Color {
+    if remaining_bounces == 0 {
+        return Vec3::zero();
+    }
+
     if let Some(hit) = world.hit(ray, Interval::new(0.001, f64::INFINITY)) {
-        if remaining_bounces == 0 {
-            return Vec3::zero();
-        }
-        let bounce_direction = hit.normal + random_unit_vector();
-        return ray_color(
-            &Ray::new(hit.p, bounce_direction),
-            world,
-            remaining_bounces - 1,
-        ) / 2.;
+        return match hit.material.scatter(ray, &hit) {
+            None => Vec3::zero(),
+            Some(scattered) => ray_color(&scattered.ray, world, remaining_bounces - 1)
+                .component_mul(scattered.attenuation),
+        };
     }
 
     let unit_direction = ray.direction.normalize();

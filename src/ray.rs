@@ -1,10 +1,19 @@
-use crate::{interval::Interval, vector::Vec3};
+use crate::{
+    interval::Interval,
+    material::Material,
+    vector::{Color, Vec3},
+};
 
 use std::rc::Rc;
 
 pub struct Ray {
     pub origin: Vec3,
     pub direction: Vec3,
+}
+
+pub struct ScatteredRay {
+    pub ray: Ray,
+    pub attenuation: Color,
 }
 
 impl Ray {
@@ -23,6 +32,7 @@ pub struct Hit {
     pub p: Vec3,
     pub normal: Vec3,
     pub front_face: bool,
+    pub material: Rc<dyn Material>,
 }
 
 pub trait Hittable {
