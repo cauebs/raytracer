@@ -1,5 +1,8 @@
-use indicatif::ProgressIterator;
+use std::sync::RwLock;
+
+use indicatif::ParallelProgressIterator;
 use rand::random;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
     interval::Interval,
@@ -58,24 +61,29 @@ impl Camera {
         self
     }
 
-    pub fn render(&self, world: &impl Hittable, fb: &mut FrameBuffer) {
+    pub fn render(&self, world: &dyn Hittable, fb: &RwLock<FrameBuffer>) {
         let message = format!(
             "{:>3} samples/pixel, {:>3} max bounces",
             self.samples_per_pixel, self.max_bounces
         );
-        for y in (0..self.output_height)
+        (0..self.output_height)
+            .into_par_iter()
             .progress_with(make_progress_bar(self.output_height).with_message(message))
-        {
-            for x in 0..self.output_width {
-                let mut pixel_color = Vec3::zero();
-                for _ in 0..self.samples_per_pixel {
-                    let ray = self.make_ray(x, y);
-                    pixel_color += ray_color(&ray, world, self.max_bounces);
-                }
-                pixel_color /= self.samples_per_pixel as f64;
-                fb.paint(x, y, &pixel_color);
-            }
-        }
+            .for_each(|y| {
+                let line = (0..self.output_width)
+                    .map(|x| {
+                        let pixel_color: Color = (0..self.samples_per_pixel)
+                            .map(|_| {
+                                let ray = self.make_ray(x, y);
+                                ray_color(&ray, world, self.max_bounces)
+                            })
+                            .sum();
+                        pixel_color / self.samples_per_pixel as f64
+                    })
+                    .collect::<Vec<_>>();
+
+                fb.write().unwrap().paint_line(y, line);
+            })
     }
 
     fn pixels_origin(&self) -> Vec3 {
@@ -106,7 +114,7 @@ impl Camera {
     }
 }
 
-fn ray_color(ray: &Ray, world: &impl Hittable, remaining_bounces: usize) -> Color {
+fn ray_color(ray: &Ray, world: &dyn Hittable, remaining_bounces: usize) -> Color {
     if remaining_bounces == 0 {
         return Vec3::zero();
     }

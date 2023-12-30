@@ -12,13 +12,14 @@ use material::{LambertianDiffuse, Metal};
 use ray::HittableList;
 use vector::{vec3, Color};
 
-use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
 use minifb::{Key, KeyRepeat, Window, WindowOptions};
 
 pub struct FrameBuffer {
     width: usize,
+    height: usize,
     buf: Vec<u32>,
 }
 
@@ -26,6 +27,7 @@ impl FrameBuffer {
     fn new(width: usize, height: usize) -> Self {
         Self {
             width,
+            height,
             buf: vec![0; width * height],
         }
     }
@@ -47,60 +49,72 @@ impl FrameBuffer {
             (linear_to_gamma(color.z) * 255.999) as u8,
         ]);
     }
+
+    fn paint_line(&mut self, y: usize, pixels: Vec<Color>) {
+        for (x, color) in pixels.iter().enumerate() {
+            self.paint(x, y, color);
+        }
+    }
 }
 
 const ASPECT_RATIO: f64 = 16. / 9.;
 const WIDTH: usize = 400;
 const HEIGHT: usize = ((WIDTH as f64) / ASPECT_RATIO) as usize;
 
+fn repaint(window: &mut Window, frame_buffer: &RwLock<FrameBuffer>) -> Result<()> {
+    let fb = frame_buffer.read().unwrap();
+    window.update_with_buffer(&fb.buf, fb.width, fb.height)?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let mut window = Window::new("Ray Tracing", WIDTH, HEIGHT, WindowOptions::default())?;
 
     let mut world = HittableList::new();
 
-    let material_ground = Rc::new(LambertianDiffuse {
+    let material_ground = Arc::new(LambertianDiffuse {
         albedo: vec3(0.8, 0.8, 0.0),
     });
-    let material_center = Rc::new(LambertianDiffuse {
+    let material_center = Arc::new(LambertianDiffuse {
         albedo: vec3(0.7, 0.3, 0.3),
     });
-    let material_left = Rc::new(Metal {
+    let material_left = Arc::new(Metal {
         albedo: vec3(0.8, 0.8, 0.8),
         fuzziness: 0.3,
     });
-    let material_right = Rc::new(Metal {
+    let material_right = Arc::new(Metal {
         albedo: vec3(0.8, 0.6, 0.2),
         fuzziness: 1.0,
     });
 
-    world.add(Rc::new(Sphere::new(
+    world.add(Arc::new(Sphere::new(
         vec3(0.0, -100.5, -1.0),
         100.0,
         material_ground,
     )));
-    world.add(Rc::new(Sphere::new(
+    world.add(Arc::new(Sphere::new(
         vec3(0.0, 0.0, -1.0),
         0.5,
         material_center,
     )));
-    world.add(Rc::new(Sphere::new(
+    world.add(Arc::new(Sphere::new(
         vec3(-1.0, 0.0, -1.0),
         0.5,
         material_left,
     )));
-    world.add(Rc::new(Sphere::new(
+    world.add(Arc::new(Sphere::new(
         vec3(1.0, 0.0, -1.0),
         0.5,
         material_right,
     )));
 
-    let mut fb = FrameBuffer::new(WIDTH, HEIGHT);
+    let mut fb = RwLock::new(FrameBuffer::new(WIDTH, HEIGHT));
     let mut camera = Camera::new(WIDTH, HEIGHT)
         .with_samples_per_pixel(10)
         .with_max_bounces(5);
 
-    camera.render(&world, &mut fb);
-    window.update_with_buffer(&fb.buf, WIDTH, HEIGHT)?;
+    camera.render(&world, &fb);
+    repaint(&mut window, &fb)?;
 
     'event_loop: while window.is_open() {
         let keys = window.get_keys_pressed(KeyRepeat::No);
@@ -131,7 +145,7 @@ fn main() -> Result<()> {
         }
 
         camera.render(&world, &mut fb);
-        window.update_with_buffer(&fb.buf, WIDTH, HEIGHT)?;
+        repaint(&mut window, &fb)?;
     }
 
     Ok(())

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.77"
 euclid = "0.22.9"
-indicatif = "0.17.7"
+indicatif = { version = "0.17.7", features = ["rayon"] }
 minifb = "0.25.0"
 rand = "0.8.5"
+rayon = "1.8.0"

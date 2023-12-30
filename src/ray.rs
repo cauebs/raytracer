@@ -4,7 +4,7 @@ use crate::{
     vector::{Color, Vec3},
 };
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Ray {
     pub origin: Vec3,
@@ -32,16 +32,16 @@ pub struct Hit {
     pub p: Vec3,
     pub normal: Vec3,
     pub front_face: bool,
-    pub material: Rc<dyn Material>,
+    pub material: Arc<dyn Material>,
 }
 
-pub trait Hittable {
+pub trait Hittable: Send + Sync {
     fn hit(&self, ray: &Ray, ray_t: Interval) -> Option<Hit>;
 }
 
 #[derive(Default)]
 pub struct HittableList {
-    inner: Vec<Rc<dyn Hittable>>,
+    inner: Vec<Arc<dyn Hittable>>,
 }
 
 impl HittableList {
@@ -49,7 +49,7 @@ impl HittableList {
         Self { inner: Vec::new() }
     }
 
-    pub fn add(&mut self, object: Rc<dyn Hittable>) {
+    pub fn add(&mut self, object: Arc<dyn Hittable>) {
         self.inner.push(object)
     }
 
