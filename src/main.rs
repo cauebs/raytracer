@@ -58,7 +58,7 @@ impl FrameBuffer {
 }
 
 const ASPECT_RATIO: f64 = 16. / 9.;
-const WIDTH: usize = 400;
+const WIDTH: usize = 640;
 const HEIGHT: usize = ((WIDTH as f64) / ASPECT_RATIO) as usize;
 
 fn repaint(window: &mut Window, frame_buffer: &RwLock<FrameBuffer>) -> Result<()> {
@@ -110,7 +110,7 @@ fn main() -> Result<()> {
 
     let mut fb = RwLock::new(FrameBuffer::new(WIDTH, HEIGHT));
     let mut camera = Camera::new(WIDTH, HEIGHT)
-        .with_samples_per_pixel(10)
+        .with_samples_per_pixel(50)
         .with_max_bounces(5);
 
     camera.render(&world, &fb);
